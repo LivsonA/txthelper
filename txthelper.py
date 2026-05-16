@@ -1,407 +1,435 @@
-import json
-from tkinter import *
-from tkinter import ttk
-from tkinter.messagebox import showwarning, showinfo, askyesno
-from datetime import datetime
-from tkinter import colorchooser
-from json import *
-import keyboard
-import pyperclip
-import requests
+import sys
+from PyQt6.QtWidgets import (
+    QApplication,
+    QMainWindow,
+    QWidget,
+    QVBoxLayout,
+    QHBoxLayout,
+    QTextEdit,
+    QPushButton,
+    QLabel,
+    QGroupBox,
+    QListWidget,
+    QStackedWidget,
+    QLineEdit,
+    QListWidgetItem,
+)
+from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QFont
+import pymorphy3
+from pymystem3 import Mystem
 from bs4 import BeautifulSoup
-from urllib import request
-from urllib.parse import quote
-from PIL import Image, ImageDraw, ImageTk
-from langdetect import detect, DetectorFactory
+import requests
+from PyQt6.QtWidgets import QMessageBox
 
 
-DetectorFactory.seed = 0
+class CounterApp(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Счетчик")
+        self.setMinimumSize(600, 450)
+        self.setStyleSheet(self.light_style())
+        self.flag = True
+        central_widget = QWidget()
+        self.setCentralWidget(central_widget)
+        main_layout = QHBoxLayout(central_widget)
+        main_layout.setSpacing(15)
 
+        self.page_list = QListWidget()
+        self.page_list.setHorizontalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+        )
+        self.page_list.setMaximumWidth(160)
+        self.page_list.setMinimumHeight(400)
+        self.page_list.addItem("📊 Счётчик")
+        self.page_list.addItem("Морфологический\nразбор")
+        self.page_list.addItem("Морфемный\nразбор")
+        self.page_list.currentRowChanged.connect(self.switch_page)
+        self.stacked_widget = QStackedWidget()
 
-def date_():
-    a = datetime.now().hour
-    if 7 <= a <= 20:
-        choice_color_theme('ligth')
-    else:
-        choice_color_theme('dark')
+        page_counter = self.create_counter_page()
+        self.stacked_widget.addWidget(page_counter)
 
+        page_extra = self.create_extra_page()
+        self.stacked_widget.addWidget(page_extra)
 
-def choice_color_theme(theme='ligth'):
-    global qwe, cov, bob, result1, result2, result3, result4
-    if theme == 'dark':
-        сolpalet = {
-            'C1': '#121212',
-            'C2': '#1E1E1E',
-            'C3': '#2D2D2D',
-            'C4': '#252525',
-            'C5': '#333333',
-            'C6': '#424242',
-            'C7': '#535353',
-            'C8': '#616161',
-            'C9': '#252525',
-            'C10': '#E0E0E0',
-            'C11': '#BB86FC',
-            'C12': '#03DAC6'}
-    else:
-        сolpalet = {'C1': '#f5deb3',
-            'C2': '#ffffe0',
-            'C3': '#c8e6c9',
-            'C4': '#b0e0e6',
-            'C5': '#b0e0e6',
-            'C6': '#c8e6c9',
-            'C7': '#ffffe0',
-            'C8': '#f5deb3',
-            'C9': '#ffffe0',
-            'C10': '#000000',
-            'C11': '#1E88E5',
-            'C12': '#FF5252'}
+        page_extra2 = self.create_extra_page2()
+        self.stacked_widget.addWidget(page_extra2)
 
-    frame1.configure(bg=сolpalet['C1'])
-    labl.configure(bg=сolpalet['C1'], fg=сolpalet['C10'])
-    frame2.configure(bg=сolpalet['C1'])
-    labl2.configure(bg=сolpalet['C1'], fg=сolpalet['C10'])
-    labl23.configure(bg=сolpalet['C1'], fg=сolpalet['C10'])
-    text3.configure(bg=сolpalet['C4'], fg=сolpalet['C10'])
-    text90.configure(bg=сolpalet['C4'], fg=сolpalet['C10'])
-    labl1.configure(bg=сolpalet['C1'], fg=сolpalet['C10'])
-    lenbutt.configure(bg=сolpalet['C6'], fg=сolpalet['C10'])
-    labl_m.configure(bg=сolpalet['C1'], fg=сolpalet['C10'])
-    lenbutt1.configure(bg=сolpalet['C6'], fg=сolpalet['C10'])
-    labl3.configure(bg=сolpalet['C1'], fg=сolpalet['C10'])
-    lenbutt2.configure(bg=сolpalet['C6'], fg=сolpalet['C10'])
-    labl4.configure(bg=сolpalet['C1'], fg=сolpalet['C10'])
-    Entr.configure(bg=сolpalet['C4'], fg=сolpalet['C10'])
-    labl41.configure(bg=сolpalet['C1'], fg=сolpalet['C10'])
-    lenbutt11.configure(bg=сolpalet['C6'], fg=сolpalet['C10'])
-    Morfbutt.configure(bg=сolpalet['C6'], fg=сolpalet['C10'])
-    result1 = сolpalet['C2']
-    result2 = сolpalet['C2']
-    result3 = сolpalet['C2']
-    result4 = сolpalet['C2']
+        self.theme_changerbt = QPushButton("Темная тема", parent=central_widget)
+        self.theme_changerbt.clicked.connect(self.changer_theme)
+        main_layout.addWidget(self.page_list, alignment=Qt.AlignmentFlag.AlignTop)
+        main_layout.addWidget(self.stacked_widget, 1)
+        self.theme_changerbt.move(9, 418)
+        self.theme_changerbt.resize(156, 30)
+        self.theme_changerbt.setStyleSheet("""QPushButton {
+            background-color: #5a5a5a;
+            color: white;
+            border: 2px solid #444444;
+            padding: 8px 16px;
+            border-radius: 5px;
+            font-weight: bold;
+            font-size: 13px;
+            }
+        """)
 
+    def create_counter_page(self):
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        layout.setSpacing(20)
+        self.text_input = QTextEdit()
+        self.text_input.setPlaceholderText("Введите текст для анализа...")
+        self.text_input.setMaximumHeight(150)
+        layout.addWidget(self.text_input)
+        letters_group = QGroupBox("Анализ букв")
+        letters_layout = QHBoxLayout()
+        self.btn_letters = QPushButton("Анализировать кол-во букв")
+        self.btn_letters.clicked.connect(self.count_letters)
+        self.label_letters = QLabel("0 кол-во букв")
+        self.label_letters.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        letters_layout.addWidget(self.btn_letters)
+        letters_layout.addWidget(self.label_letters)
+        letters_group.setLayout(letters_layout)
+        layout.addWidget(letters_group)
+        all_chars_group = QGroupBox("Анализ символов")
+        all_chars_layout = QHBoxLayout()
+        self.btn_all_chars = QPushButton("Анализировать все символы")
+        self.btn_all_chars.clicked.connect(self.count_all_chars)
+        self.label_all_chars = QLabel("0 кол-во символов")
+        self.label_all_chars.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        all_chars_layout.addWidget(self.btn_all_chars)
+        all_chars_layout.addWidget(self.label_all_chars)
+        all_chars_group.setLayout(all_chars_layout)
+        layout.addWidget(all_chars_group)
+        words_group = QGroupBox("Анализ слов")
+        words_layout = QHBoxLayout()
+        self.btn_words = QPushButton("Анализировать кол-во слов")
+        self.btn_words.clicked.connect(self.count_words)
+        self.label_words = QLabel("0 кол-во слов")
+        self.label_words.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        words_layout.addWidget(self.btn_words)
+        words_layout.addWidget(self.label_words)
+        words_group.setLayout(words_layout)
+        layout.addWidget(words_group)
+        layout.addStretch()
+        return widget
 
-def prov():
-    rt = Entr.get().strip()
-    o = ''
-    for s in rt:
-        if 'А' <= s.upper() <= 'Я':
-            o += s.lower()
-    return o
+    def create_extra_page(self):
+        widget = QWidget()
+        self.layout = QVBoxLayout(widget)
 
+        self.info_label = QLineEdit()
+        self.info_label.setAlignment(Qt.AlignmentFlag.AlignTop)
+        self.layout.addWidget(self.info_label)
+        self.demo_button = QPushButton("Морфологический разбор")
+        self.demo_button.clicked.connect(self.show_demo_message)
+        self.layout.addWidget(self.demo_button, alignment=Qt.AlignmentFlag.AlignTop)
+        self.layout.addSpacing(100)
+        return widget
 
-def cl():
-    text90.configure(state=NORMAL)
-    text90.delete(1.0, END)
-    text90.insert(END, horoscope())
-    text90.configure(state=DISABLED)
+    def create_extra_page2(self):
+        widget = QWidget()
+        self.layout3 = QVBoxLayout(widget)
 
+        self.info_label2 = QLineEdit()
+        self.info_label2.setAlignment(Qt.AlignmentFlag.AlignTop)
+        self.layout3.addWidget(self.info_label2)
+        self.demo_button2 = QPushButton("Морфемный разбор")
+        self.demo_button2.clicked.connect(self.show_demo_message2)
+        self.layout3.addWidget(self.demo_button2, alignment=Qt.AlignmentFlag.AlignTop)
+        self.layout3.addSpacing(100)
+        return widget
 
-def cl2():
-    text90.configure(state=NORMAL)
-    text90.delete(1.0, END)
-    text90.insert(END, razbor2())
-    text90.configure(state=DISABLED)
+    def show_demo_message(self):
+        if hasattr(self, "unt") and self.unt is not None:
+            self.layout.removeWidget(self.unt)
+            self.unt.deleteLater()
+            self.unt = None
+        if hasattr(self, "unt2") and self.unt2 is not None:
+            self.layout.removeWidget(self.unt2)
+            self.unt2.deleteLater()
+            self.unt2 = None
 
-
-def horoscope():
-    text12 = Entr.get().strip()
-    print(detect(text12))
-    if detect(text12)=='cy':
-        showwarning(title='внимание', message='напиши слово на русском языке!')
-
-    else:
+        analysis_result = self.analyze()
         try:
-            if text12.isalpha() == True:
-                otv = ''
-                url = 'https://morphologyonline.ru/{0}'.format(quote(text12))
-                test = requests.get(url)
-                bs = BeautifulSoup(test.text, 'html.parser')
-                abc = bs.find('ol').get_text().split('.')
-                for st in abc:
-                    otv += st.strip().replace('Часть речи ', '', 1) + '\n'
-                return otv
-            else:
-                showwarning(title='Внимание', message='Сначала напиши слово')
-        except AttributeError:
-            showwarning(title='Внимание', message=f'Напиши правильно слово {text12}')
 
+            self.unt = QLabel(f"{' '.join(analysis_result)}")
+            self.layout.addWidget(self.unt, alignment=Qt.AlignmentFlag.AlignCenter)
 
+            if self.parse.tag.POS == "NOUN":
+                self.unt2 = QTextEdit("")
+                self.unt2.setReadOnly(True)
+                self.unt2.setText(
+                    f"Именительный (кто? что?): {self.parse.inflect({'nomn'}).word}\nРодительный (кого? чего?): {self.parse.inflect({'gent'}).word}\nДательный (кому? чему?): {self.parse.inflect({'datv'}).word}\nВинительный (кого? что?): {self.parse.inflect({'accs'}).word}\nТворительный (кем? чем?): {self.parse.inflect({'ablt'}).word}\nПредложный (о ком? о чём?): {self.parse.inflect({'loct'}).word}"
+                )
 
-def razbor2():
-    word = Entr.get().strip()
-    if detect(word) == 'cy':
-        showwarning(title='внимание', message='напиши слово на русском языке!')
-        print(detect(word))
-    else:
-        print(detect(word))
+                self.layout.insertWidget(2, self.unt2)
+                self.unt2.setAlignment(Qt.AlignmentFlag.AlignLeft)
+        except BaseException:
+            QMessageBox.warning(self, "Ошибка", "введите слово")
+
+    def show_demo_message2(self):
+        if hasattr(self, "unt3") and self.unt3 is not None:
+            self.layout3.removeWidget(self.unt3)
+            self.unt3.deleteLater()
+            self.unt3 = None
+        if hasattr(self, "unt4") and self.unt4 is not None:
+            self.layout3.removeWidget(self.unt4)
+            self.unt4.deleteLater()
+            self.unt4 = None
         try:
-            if word.isalpha() == True:
-                firstlet=word[0].upper()
-                Url='https://morphemeonline.ru/{1}/{0}'.format(word, firstlet )
-                test = requests.get(Url)
-                bs = BeautifulSoup(test.text, 'html.parser')
-                result=bs.find(class_='fs-5 bg-light d-inline-block p-3').get_text().replace(':', '\n')
-                return result
-            else:
-                showwarning(title='Внимание', message='Сначала напиши слово')
-        except AttributeError:
-            showwarning(title='Внимание', message=f'Напиши правильно слово {word}')
-
-
-
-def paste_():
-    text3.insert(1.0, pyperclip.paste())
-
-def copy():
-    copytxt=pyperclip.copy(str(text3.selection_get()))
-
-
-def esc():
-    a = askyesno(title='Внимание!', message='Вы точно хотите выйти?')
-    if a:
-        mainwind.destroy()
-
-
-def analyze():
-    m = Mystem()
-    a = text.get(1.0, END)
-    analyz = m.analyze(a)
-    print(analyz[0]['analysis'][0]['gr'])
-    analyzer = pymorphy2.MorphAnalyzer()
-    analyzer = analyzer.parse((text.get(1.0, END)))[0]
-    print(type(analyzer))
-
-
-def sloyw():
-    # b = len([x for x in text3.get(1.0, END) if x.isalpha()])
-
-    labl_m.configure(text=len(text3.get(1.0, END).split()))
-
-
-def lentext():
-    labl23.configure(text=len(text3.get(1.0, END)) - 1)
-
-
-def lentext1():
-    labl1.configure(text=len(text3.get(1.0, END).replace(' ', '').strip().replace(',', '').replace("'", '')))
-
-
-def clouse(window):
-    window.grab_release()
-    window.destroy()
-
-
-def otrisovka():
-    im = Image.new("RGB", (31, 31), "white")
-    draw = ImageDraw.Draw(im)
-    draw.rectangle([0, 0, 30, 30], fill=result2, outline='#000', width=1)
-    photo = ImageTk.PhotoImage(im)
-    imLab = Label(new_win, image=photo)
-    imLab.image = photo
-    imLab.place(x=5, y=75)
-
-    im2 = Image.new("RGB", (31, 31), "white")
-    draw2 = ImageDraw.Draw(im2)
-    draw2.rectangle([0, 0, 30, 30], fill=result1, outline='#000', width=1)
-    photo2 = ImageTk.PhotoImage(im2)
-    imLab2 = Label(new_win, image=photo2)
-    imLab2.image = photo2
-    imLab2.place(x=5, y=210)
-
-    im3 = Image.new("RGB", (31, 31), "white")
-    draw3 = ImageDraw.Draw(im3)
-    draw3.rectangle([0, 0, 30, 30], fill=result3, outline='#000', width=1)
-    photo3 = ImageTk.PhotoImage(im3)
-    imLab3 = Label(new_win, image=photo3)
-    imLab3.image = photo3
-    imLab3.place(x=5, y=120)
-    imLab3.update_idletasks()
-
-    im4 = Image.new("RGB", (31, 31), "white")
-    draw4 = ImageDraw.Draw(im4)
-    draw4.rectangle([0, 0, 30, 30], fill=result4, outline='#000', width=1)
-    photo4 = ImageTk.PhotoImage(im4)
-    imLab4 = Label(new_win, image=photo4)
-    imLab4.image = photo4
-    imLab4.place(x=5, y=165)
-
-
-def newwin():
-    global new_win, result2, result3
-    global mystyle
-    new_win = Toplevel()
-    new_win.title("Персонализация")
-    new_win.geometry('250x840+0+20')
-    new_win.configure(bg='#b8b2b2')
-    new_win.protocol("WM_DELETE_WINDOW", lambda: clouse(new_win))
-    close_button = Button(new_win, text="❌", font=(20), command=lambda: clouse(new_win), bg='#f70202')
-    close_button.place(relx=0.879999, rely=0)
-
-    flagbut = IntVar()
-    flagbut.set(0)
-    radbutt = Radiobutton(new_win, text='молочная тема', value=1, variable=flagbut, bg='#b8b2b2', command=lambda: choice_color_theme('ligth'))
-    radbutt.place(x=20, y=20)
-    radbutt2 = Radiobutton(new_win, text='тёмная тема', value=2, variable=flagbut, bg='#b8b2b2', command=lambda: choice_color_theme('dark'))
-    radbutt2.place(x=20, y=40)
-    buttchosen = Button(new_win, text='сменить цвет обоев', command=choice_color)
-    buttchosen.place(x=50, y=80)
-    buttchosen1 = Button(new_win, text='сменить цвет всех кнопок', command=choice_colorbutt)
-    buttchosen1.place(x=50, y=125)
-    buttchosen2 = Button(new_win, text='сменить цвет всех окн ввода текста', command=choice_colorеtext)
-    buttchosen2.place(x=50, y=170)
-    buttchosen3 = Button(new_win, text='сменить цвет всех шрифтов', command=choice_colorеfont)
-    buttchosen3.place(x=50, y=215)
-
-    otrisovka()
-
-    new_win.update_idletasks()
-    new_win.grab_set()
-    new_win.overrideredirect(True)
-
-
-def choice_colorbutt():
-    global result3, imLab3, imLab2, imLab
-    result = colorchooser.askcolor(initialcolor="black")
-    result3 = result[1]
-    lenbutt.configure(bg=result[1])
-    lenbutt2.configure(bg=result[1])
-    lenbutt1.configure(bg=result[1])
-    lenbutt11.configure(bg=result[1])
-    otrisovka()
-
-
-def choice_colorеtext():
-    global result4, imLab3, imLab2, imLab
-    result = colorchooser.askcolor(initialcolor="black")
-    result4 = result[1]
-    text3.configure(bg=result[1])
-    text90.configure(bg=result[1])
-    otrisovka()
-
-
-def choice_colorеfont():
-    global result1, imLab3, imLab2, imLab
-    result = colorchooser.askcolor(initialcolor="black")
-    result1 = result[1]
-    labl.configure(fg=result[1])
-    labl23.configure(fg=result[1])
-    text3.configure(fg=result[1])
-    text90.configure(fg=result[1])
-    lenbutt.configure(fg=result[1])
-    lenbutt1.configure(fg=result[1])
-    lenbutt2.configure(fg=result[1])
-    labl1.configure(fg=result[1])
-    labl_m.configure(fg=result[1])
-    labl3.configure(fg=result[1])
-    labl4.configure(fg=result[1])
-    Entr.configure(fg=result[1])
-    labl2.configure(fg=result[1])
-    labl41.configure(fg=result[1])
-    otrisovka()
-
-
-def choice_color():
-    global result2, imLab3, imLab2, imLab
-    resultw = colorchooser.askcolor(initialcolor="black")
-    result2 = resultw[1]
-    frame2.configure(bg=resultw[1])
-    frame1.configure(bg=resultw[1])
-    labl.configure(bg=resultw[1])
-    labl2.configure(bg=resultw[1])
-    otrisovka()
-
-
-result4 = 0
-result1 = 0
-result2 = 0
-result3 = 0
-mainwind = Tk()
-mainwind.state('zoomed')
-mainwind.title('проект')
-mainwind.overrideredirect(True)
-
-main_menu = Menu()
-
-file_menu = Menu(tearoff=0)
-file_menu.add_command(label="Персонализация", font=('Arial black', 10), command=newwin)
-main_menu.add_cascade(label="Настройки", menu=file_menu, font=('Arial black', 8))
-file_menu.add_command(label='Выйти', font=('Arial black', 10), command=esc)
-
-notebook = ttk.Notebook(mainwind)
-notebook.place(relheight=1, relwidth=1, relx=0, rely=0)
-
-frame1 = Frame(notebook)
-notebook.place(relheight=1, relwidth=1, relx=0, rely=0)
-
-frame2 = Frame(notebook)
-notebook.place(relheight=1, relwidth=1, relx=0, rely=0)
-
-notebook.add(frame1, text="счетчик")
-notebook.add(frame2, text="морфологический разбор")
-
-labl = Label(frame1, text='Счетчик', font=('Arial black', 30))
-labl.place(relx=0.4, rely=0, )
-
-labl2 = Label(frame2, text='Морфологический разбор', font=('Arial black', 30))
-labl2.place(relx=0.25, rely=0, )
-
-text3 = Text(frame1, font=('Arial black', 10))
-text3.place(relx=0.25, rely=0.389999, relheight=0.6, relwidth=0.5)
-
-mystyle = ttk.Style()
-mystyle.configure('styleScale',
-                  background="#b8b2b2")
-mystyle.configure("TNotebook.Tab", font=("Arial black", 10, "bold"))
-
-text90 = Text(frame2, font=('Arial black', 10), state=DISABLED, wrap='word')
-text90.place(relx=0.35, rely=0.2, relheight=0.5, relwidth=0.4)
-
-lenbutt= Button(frame1, text='Анализировать все символы', font=('Arial black', 10), command=lentext)
-lenbutt.place(relx=0.08, rely=0.5, relwidth=0.16)
-
-lenbutt1 = Button(frame1, text='Анализировать кол-во букв', font=('Arial black', 10), command=lentext1)
-lenbutt1.place(relx=0.08, rely=0.4, relwidth=0.16)
-
-text1 = Text(frame1, font=('Arial', 10), state=DISABLED)
-text1.place(relx=0.75, rely=0.389999, relheight=0.6, relwidth=0.06)
-
-lenbutt11 = Button(frame2, text='Морфологическй разбор', font=('Arial black', 10), command=cl)
-lenbutt11.place(relx=0.03, rely=0.25)
-
-Morfbutt = Button(frame2, text='Морфемный разбор', font=('Arial black', 10), command=cl2)
-Morfbutt.place(relx=0.03, rely=0.35)
-
-
-butt = Button(frame1, text='')
-
-lenbutt2 = Button(frame1, text='Анализировать кол-во слов', font=('Arial black', 10), command=sloyw)
-lenbutt2.place(relx=0.08, rely=0.6, relwidth=0.16)
-
-labl1 = Label(frame1, text='0', borderwidth=10)
-labl1.place(relx=0.76, rely=0.415, relheight=0.045, relwidth=0.042)
-
-labl23 = Label(frame1, text='0', borderwidth=10)
-labl23.place(relx=0.76, rely=0.5, relheight=0.045, relwidth=0.042)
-
-labl_m = Label(frame1, text='0', borderwidth=10)
-labl_m.place(relx=0.76, rely=0.585, relheight=0.045, relwidth=0.042)
-
-labl3 = Label(frame1, text='кол-во букв', borderwidth=10)
-labl3.place(relx=0.82, rely=0.415, relheight=0.045)
-
-labl41 = Label(frame1, text='со всеми символами ', borderwidth=10)
-labl41.place(relx=0.82, rely=0.5, relheight=0.045)
-
-labl4 = Label(frame1, text='кол-во слов', borderwidth=10)
-labl4.place(relx=0.82, rely=0.585, relheight=0.045)
-
-Entr = Entry(frame2)
-Entr.place(relx=0.03, rely=0.2, relheight=0.045, relwidth=0.3)
-
-date_()
-
-keyboard.add_hotkey('Escape', esc)
-keyboard.add_hotkey('ctrl+v', paste_)
-keyboard.add_hotkey('ctrl+c', copy)
-mainwind.config(menu=main_menu)
-mainwind.mainloop()
+            analysis_result = self.parser()
+            self.unt3 = QLabel(f"{''.join(analysis_result)}")
+            self.unt3.setWordWrap(True)
+            self.unt3.setTextInteractionFlags(
+                Qt.TextInteractionFlag.TextSelectableByMouse
+            )
+
+            self.layout3.addWidget(self.unt3)
+            parse = pymorphy3.MorphAnalyzer(lang="ru").parse(self.info_label2.text())[0]
+            if parse.tag.POS == "NOUN":
+                self.unt4 = QTextEdit("")
+                self.unt4.setReadOnly(True)
+                self.unt4.setText(
+                    f"Именительный (кто? что?): {parse.inflect({'nomn'}).word}\nРодительный (кого? чего?): {parse.inflect({'gent'}).word}\nДательный (кому? чему?): {parse.inflect({'datv'}).word}\nВинительный (кого? что?): {parse.inflect({'accs'}).word}\nТворительный (кем? чем?): {parse.inflect({'ablt'}).word}\nПредложный (о ком? о чём?): {parse.inflect({'loct'}).word}"
+                )
+                self.layout3.insertWidget(2, self.unt4)
+                self.unt4.setAlignment(Qt.AlignmentFlag.AlignLeft)
+        except BaseException:
+            QMessageBox.warning(self, "Ошибка", "неправильный ввод")
+
+    def analyze(self):
+        morph = pymorphy3.MorphAnalyzer(lang="ru")
+        if self.info_label.text().split() == []:
+            pass
+        else:
+            self.parse = morph.parse(self.info_label.text())[0]
+            return self.parse.tag.cyr_repr, " Н.Ф " + self.parse.normal_form
+
+    def parser(self):
+        word = self.info_label2.text()
+        firstlet = self.info_label2.text()[0].upper()
+
+        Url = "https://morphemeonline.ru/{1}/{0}".format(word, firstlet)
+        test = requests.get(Url)
+        bs = BeautifulSoup(test.text, "html.parser")
+        result = (
+            bs.find(class_="fs-5 bg-light d-inline-block p-3")
+            .get_text()
+            .replace(":", "\n")
+        )
+        return result
+
+    def switch_page(self, index):
+        self.stacked_widget.setCurrentIndex(index)
+
+    def get_text(self) -> str:
+        return self.text_input.toPlainText()
+
+    def count_letters(self):
+        text = self.get_text()
+        letter_count = sum(1 for ch in text if ch.isalpha())
+        self.label_letters.setText(f"{letter_count} кол-во букв")
+
+    def count_all_chars(self):
+        text = self.get_text()
+        total_chars = len(text)
+        self.label_all_chars.setText(f"{total_chars} кол-во символов")
+
+    def count_words(self):
+        text = self.get_text()
+        words = text.split()
+        word_count = len(words)
+        self.label_words.setText(f"{word_count} кол-во слов")
+
+    def light_style(self):
+        return """
+                QMainWindow {
+                    background-color: #f5f5f5;
+                }
+                QListWidget {
+                    background-color: white;
+                    border: 1px solid #ccc;
+                    border-radius: 5px;
+                    font-size: 14px;
+                    padding: 5px;
+                }
+                QListWidget::item {
+                    padding: 10px;
+                    border-radius: 3px;
+                }
+                QListWidget::item:selected {
+                    background-color: #4CAF50;
+                    color: white;
+                }
+                QListWidget::item:hover {
+                    background-color: #7CD782;
+                }
+                QGroupBox {
+                    font-weight: bold;
+                    border: 1px solid #ccc;
+                    border-radius: 8px;
+                    margin-top: 12px;
+                    font-size: 14px;
+                    background-color: white;
+                }
+                QGroupBox::title {
+                    subcontrol-origin: margin;
+                    left: 10px;
+                    padding: 0 5px 0 5px;
+                }
+                QPushButton {
+                    background-color: #4CAF50;
+                    color: white;
+                    border: none;
+                    padding: 8px 16px;
+                    border-radius: 5px;
+                    font-weight: bold;
+                    font-size: 13px;
+                }
+                QPushButton:hover {
+                    background-color: #45a049;
+                }
+                QLineEdit {
+                    background-color: white;
+                    border: 1px solid #555;
+                    border-radius: 5px;
+                    padding: 5px;
+                    font-size: 16px;
+                }
+                QPushButton:pressed {
+                    background-color: #3d8b40;
+                }
+                QLabel {
+                    font-size: 15px;
+                    background-color: #f0f0f0;
+                    padding: 8px;
+                    border-radius: 5px;
+                    border: 1px solid #ddd;
+                    min-width: 150px;
+                }
+                QTextEdit {
+                    border: 1px solid #ccc;
+                    border-radius: 5px;
+                    padding: 5px;
+                    font-size: 14px;
+                    background-color: white;
+                }
+            """
+
+    def dark_style(self):
+        return """
+    QMainWindow {
+        background-color: #2b2b2b;
+    }
+    QListWidget {
+        background-color: #3c3f41;
+        border: 1px solid #555;
+        border-radius: 5px;
+        font-size: 14px;
+        padding: 5px;
+        color: #e0e0e0;
+    }
+    QListWidget::item {
+        padding: 10px;
+        border-radius: 3px;
+    }
+    QListWidget::item:selected {
+        background-color: #A0A5A8;
+        color: white;
+    }
+    QListWidget::item:hover {
+        background-color: #4c4f51;
+    }
+    QGroupBox {
+        font-weight: bold;
+        border: 1px solid #555;
+        border-radius: 8px;
+        margin-top: 12px;
+        font-size: 14px;
+        background-color: #3c3f41;
+        color: #e0e0e0;
+    }
+    QGroupBox::title {
+        subcontrol-origin: margin;
+        left: 10px;
+        padding: 0 5px 0 5px;
+    }
+    QPushButton {
+        background-color: #5a5a5a;
+        color: white;
+        border: 2px solid #444444;
+        padding: 8px 16px;
+        border-radius: 5px;
+        font-weight: bold;
+        font-size: 13px;
+    }
+    QLineEdit {
+        border: 1px solid #555;
+        border-radius: 5px;
+        padding: 5px;
+        font-size: 16px;
+        background-color: #3c3f41;
+        color: #e0e0e0;
+    }
+    QPushButton:hover {
+        background-color: #6e6e6e;
+    }
+    QPushButton:pressed {
+        background-color: #4a4a4a;
+    }
+    QLabel {
+        font-size: 15px;
+        background-color: #4a4a4a;
+        padding: 8px;
+        border-radius: 5px;
+        border: 1px solid #555;
+        min-width: 150px;
+        color: #e0e0e0;
+    }
+    QTextEdit {
+        border: 1px solid #555;
+        border-radius: 5px;
+        padding: 5px;
+        font-size: 14px;
+        background-color: #3c3f41;
+        color: #e0e0e0;
+    }
+    """
+
+    def changer_theme(self):
+        self.flag = not self.flag
+        if self.flag:
+            self.theme_changerbt.setText("Темная тема")
+            self.setStyleSheet(self.light_style())
+            self.theme_changerbt.setStyleSheet("""
+        background-color: #5a5a5a;
+        color: white;
+        border: 2px solid #444444;
+        padding: 8px 16px;
+        border-radius: 5px;
+        font-weight: bold;
+        font-size: 13px;
+        """)
+        else:
+            self.theme_changerbt.setText("Светлая тема")
+            self.setStyleSheet(self.dark_style())
+            self.theme_changerbt.setStyleSheet("""background-color: #C6EDFF;
+                    color: black;
+                    border: 1px solid #555;
+                    padding: 8px 16px;
+                    border-radius: 5px;
+                    font-weight: bold;
+                    font-size: 13px;
+                    """)
+
+
+def main():
+    app = QApplication(sys.argv)
+    window = CounterApp()
+    window.show()
+    sys.exit(app.exec())
+
+
+if __name__ == "__main__":
+    main()
