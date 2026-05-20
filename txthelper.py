@@ -23,9 +23,8 @@ import requests
 from PyQt6.QtWidgets import QMessageBox
 import wikipedia
 import webbrowser
-import wikipediaapi
 from ZZZ import synonym, WordError
-from text_recognition import text_recognition
+from text_recognition import text_recognitions
 
 wikipedia.set_lang("ru")
 
@@ -257,7 +256,7 @@ class CounterApp(QMainWindow):
     def ryttyr(self):
         file_path, _ = QFileDialog.getOpenFileName(None, "Выберите файл", "", "All Files (*);;Text Files (*.txt)")
         if file_path:
-            self.text_input.setText(text_recognition(file_path))
+            self.text_input.setText(text_recognitions(file_path))
         else:
             pass
         # a = Dialog()
