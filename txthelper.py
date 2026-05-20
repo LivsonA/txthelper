@@ -293,8 +293,10 @@ class CounterApp(QMainWindow):
         self.label_words.setText(f"{word_count} кол-во слов")
 
     def wiki(self, word, lang= 'ru'):
-        rer = self.info_label.text()
-        print(rer)
+        if self.stacked_widget.currentIndex() == 1:
+            rer = self.info_label.text()
+        elif self.stacked_widget.currentIndex() == 2:
+            rer = self.info_label2.text()
         Url = f"https://ru.wikipedia.org/wiki/{rer}"
         webbrowser.open(Url)
 
